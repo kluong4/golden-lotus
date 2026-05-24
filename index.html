@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Golden Lotus Dance Group</title>
+  <meta name="description" content="Golden Lotus Dance Group — member resources and information." />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- React + Babel (no build step needed) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #FDFAF6;
+      color: #2C1810;
+      -webkit-font-smoothing: antialiased;
+    }
+    #root { min-height: 100vh; }
+    textarea, input, button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #B89A6A; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ── Constants ────────────────────────────────────────────────────────────
+    const STORAGE_KEY  = "gl_songs_v3";
+    const SITE_KEY     = "gl_site_v1";
+    const ADMIN_PASS   = "lotus2025admin";
+    const VIEWER_PASS  = "lotus2025";
+
+    const EVENT_TYPES        = ["Tet","Ullambana","Vesak","Mid-Autumn","General","Other"];
+    const PERFORMED_OPTS     = ["Not yet","In Progress","Performed"];
+    const VIDEO_COLORS       = ["#8B4513","#0A5A8B","#2E7D32","#5A2D8B","#7A5C00","#C0392B","#1A5A4A","#7A3B69","#555555"];
+    const VIDEO_COLOR_LABELS = ["Terracotta","Ocean","Forest","Plum","Gold","Crimson","Teal","Mauve","Slate"];
+
+    const TAG_COLORS = {
+      Tet:          { bg:"#FFF0E0", color:"#8B4513" },
+      Ullambana:    { bg:"#EDE0FF", color:"#5A2D8B" },
+      Vesak:        { bg:"#E0F4FF", color:"#0A5A8B" },
+      "Mid-Autumn": { bg:"#FFF8D6", color:"#7A5C00" },
+      General:      { bg:"#E8F5E9", color:"#2E7D32" },
+      Other:        { bg:"#F5F5F5", color:"#555"    },
+    };
+    const PERFORMED_COLORS = {
+      "Not yet":     { bg:"#F5F5F5", color:"#666"    },
+      "In Progress": { bg:"#FFF3CD", color:"#7A5C00" },
+      "Performed":   { bg:"#D4EDDA", color:"#155724" },
+    };
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function parseYouTubeId(url) {
+      try {
+        const u = new URL(url.trim());
+        if (u.hostname.includes("youtu.be")) return u.pathname.slice(1).split("?")[0];
+        if (u.hostname.includes("youtube.com")) {
+          if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/shorts/")[1].split("?")[0];
+          return u.searchParams.get("v") || "";
+        }
+      } catch {}
+      return "";
+    }
+    function formatTime(s) {
+      const m = Math.floor(s/60), sec = Math.floor(s%60);
+      return `${m}:${sec.toString().padStart(2,"0")}`;
+    }
+    function parseTime(str) {
+      const p = str.trim().split(":").map(Number);
+      if (p.length===2 && p.every(n=>!isNaN(n))) return p[0]*60+p[1];
+      if (p.length===3 && p.every(n=>!isNaN(n))) return p[0]*3600+p[1]*60+p[2];
+      return NaN;
+    }
+    function hex2rgba(hex, a=1) {
+      const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    // localStorage-backed store (GitHub Pages)
+    const Store = {
+      get(key)      { try { return localStorage.getItem(key); }      catch { return null; } },
+      set(key, val) { try { localStorage.setItem(key, val); }        catch {} },
+    };
+
+    // ── Style constants ──────────────────────────────────────────────────────
+    const BTN = {
+      background:"#2C1810", color:"#E8C98A", border:"none", borderRadius:8,
+      padding:"7px 16px", cursor:"pointer", fontSize:13,
+      fontFamily:"'DM Sans',sans-serif", fontWeight:600,
+    };
+    const BTN_GHOST = {
+      border:"0.5px solid #D4B896", background:"none", borderRadius:8,
+      padding:"7px 16px", cursor:"pointer", fontSize:13, fontFamily:"'DM Sans',sans-serif",
+    };
+    const INPUT_STYLE = {
+      width:"100%", border:"0.5px solid #D4B896", borderRadius:8,
+      padding:"9px 12px", fontSize:13, fontFamily:"'DM Sans',sans-serif",
+      outline:"none", boxSizing:"border-box",
+    };
+
+    // ── Root App ─────────────────────────────────────────────────────────────
+    function App() {
+      const [role,       setRole]       = useState(null);
+      const [page,       setPage]       = useState("home");
+      const [songs,      setSongs]      = useState([]);
+      const [siteData,   setSiteData]   = useState({ about:"", photos:[], contact:"" });
+      const [activeSong, setActiveSong] = useState(null);
+      const [loaded,     setLoaded]     = useState(false);
+
+      useEffect(() => {
+        const s = Store.get(STORAGE_KEY);
+        const d = Store.get(SITE_KEY);
+        setSongs(s ? JSON.parse(s) : []);
+        setSiteData(d ? JSON.parse(d) : { about:"", photos:[], contact:"" });
+        setLoaded(true);
+      }, []);
+
+      const saveSongs = useCallback((updated) => {
+        setSongs(updated);
+        Store.set(STORAGE_KEY, JSON.stringify(updated));
+      }, []);
+
+      const saveSiteData = useCallback((updated) => {
+        setSiteData(updated);
+        Store.set(SITE_KEY, JSON.stringify(updated));
+      }, []);
+
+      if (!loaded) return <Splash />;
+
+      const isAdmin  = role === "admin";
+      const canEdit  = isAdmin;
+      const loggedIn = role === "viewer" || role === "admin";
+
+      const navigate = (p) => { setPage(p); setActiveSong(null); };
+
+      if (page === "resources" && !loggedIn) {
+        return (
+          <div style={{ fontFamily:"'DM Sans',sans-serif", minHeight:"100vh", background:"#FDFAF6" }}>
+            <NavBar page={page} loggedIn={loggedIn} isAdmin={isAdmin} navigate={navigate} onLogout={()=>{ setRole(null); navigate("home"); }} />
+            <LoginPage onLogin={(r) => { setRole(r); }} />
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ fontFamily:"'DM Sans',sans-serif", minHeight:"100vh", background:"#FDFAF6" }}>
+          <NavBar page={page} loggedIn={loggedIn} isAdmin={isAdmin} navigate={navigate} onLogout={()=>{ setRole(null); navigate("home"); }} />
+
+          {page === "home"    && <HomePage    siteData={siteData} saveSiteData={saveSiteData} canEdit={canEdit} />}
+          {page === "photos"  && <PhotosPage  siteData={siteData} saveSiteData={saveSiteData} canEdit={canEdit} />}
+          {page === "contact" && <ContactPage siteData={siteData} saveSiteData={saveSiteData} canEdit={canEdit} />}
+          {page === "resources" && loggedIn && (
+            activeSong
+              ? <SongDetail songId={activeSong} songs={songs} saveSongs={saveSongs} onBack={() => setActiveSong(null)} canEdit={canEdit} />
+              : <ResourcesDashboard songs={songs} saveSongs={saveSongs} onSelect={setActiveSong} canEdit={canEdit} />
+          )}
+        </div>
+      );
+    }
+
+    // ── Nav Bar ──────────────────────────────────────────────────────────────
+    function NavBar({ page, loggedIn, isAdmin, navigate, onLogout }) {
+      return (
+        <nav style={{ background:"#2C1810", padding:"0 28px", display:"flex", alignItems:"stretch", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+          <button onClick={() => navigate("home")} style={{ background:"none", border:"none", cursor:"pointer", padding:"14px 0", textAlign:"left" }}>
+            <div style={{ fontFamily:"'DM Serif Display',serif", color:"#E8C98A", fontSize:21, lineHeight:1 }}>Golden Lotus</div>
+            <div style={{ color:"rgba(232,201,138,0.5)", fontSize:10, letterSpacing:"2px", textTransform:"uppercase", marginTop:2 }}>Dance Group</div>
+          </button>
+          <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+            {["home","photos","contact"].map(p => (
+              <button key={p} onClick={() => navigate(p)} style={{ background:"none", border:"none", color: page===p ? "#E8C98A" : "rgba(232,201,138,0.5)", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight: page===p ? 600 : 400, padding:"0 14px", cursor:"pointer", height:"100%", borderBottom: page===p ? "2px solid #E8C98A" : "2px solid transparent", textTransform:"capitalize" }}>{p}</button>
+            ))}
+            <button onClick={() => navigate("resources")} style={{ background:"none", border:"none", color: page==="resources" ? "#E8C98A" : "rgba(232,201,138,0.5)", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight: page==="resources" ? 600 : 400, padding:"0 14px", cursor:"pointer", height:"100%", borderBottom: page==="resources" ? "2px solid #E8C98A" : "2px solid transparent", display:"flex", alignItems:"center", gap:5 }}>
+              🔒 Resources
+            </button>
+            {loggedIn && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:8, paddingLeft:12, borderLeft:"0.5px solid rgba(232,201,138,0.2)" }}>
+                <span style={{ fontSize:11, color:"rgba(232,201,138,0.7)", background:"rgba(232,201,138,0.1)", padding:"3px 10px", borderRadius:20 }}>{isAdmin ? "Admin" : "Viewer"}</span>
+                <button onClick={onLogout} style={{ fontSize:11, color:"rgba(232,201,138,0.5)", background:"none", border:"0.5px solid rgba(232,201,138,0.2)", borderRadius:6, padding:"3px 10px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Log out</button>
+              </div>
+            )}
+          </div>
+        </nav>
+      );
+    }
+
+    // ── Splash ───────────────────────────────────────────────────────────────
+    function Splash() {
+      return (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#FDFAF6" }}>
+          <div style={{ textAlign:"center", color:"#8B6A3E" }}>
+            <div style={{ fontSize:52, marginBottom:12 }}>🪷</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:24 }}>Golden Lotus</div>
+            <div style={{ fontSize:13, marginTop:8, color:"#B89A6A" }}>Loading…</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Login Page ───────────────────────────────────────────────────────────
+    function LoginPage({ onLogin }) {
+      const [pass,  setPass]  = useState("");
+      const [error, setError] = useState("");
+
+      const attempt = () => {
+        if (pass === ADMIN_PASS)  { onLogin("admin");  return; }
+        if (pass === VIEWER_PASS) { onLogin("viewer"); return; }
+        setError("Incorrect password. Please try again.");
+        setPass("");
+      };
+
+      return (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"calc(100vh - 56px)" }}>
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:20, padding:"40px 36px", width:360, maxWidth:"90vw", textAlign:"center", boxShadow:"0 8px 40px rgba(44,24,16,0.08)" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>🔒</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:24, color:"#2C1810", marginBottom:6 }}>Members Only</div>
+            <div style={{ fontSize:13, color:"#8B7355", marginBottom:28 }}>Enter your password to access the Resources area</div>
+            <input
+              type="password" value={pass}
+              onChange={e => { setPass(e.target.value); setError(""); }}
+              onKeyDown={e => e.key === "Enter" && attempt()}
+              placeholder="Password"
+              autoFocus
+              style={{ ...INPUT_STYLE, marginBottom: error ? 8 : 16, textAlign:"center", letterSpacing:"0.1em" }}
+            />
+            {error && <div style={{ fontSize:12, color:"#C0392B", marginBottom:12 }}>{error}</div>}
+            <button onClick={attempt} style={{ ...BTN, width:"100%", padding:"10px" }}>Enter</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Modal ────────────────────────────────────────────────────────────────
+    function Modal({ title, onClose, children, width=400 }) {
+      return (
+        <div
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}
+          onClick={e => e.target === e.currentTarget && onClose()}
+        >
+          <div style={{ background:"#FFF", borderRadius:16, padding:28, width, maxWidth:"92vw", maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:20, color:"#2C1810" }}>{title}</div>
+              <button onClick={onClose} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer", color:"#B89A6A", lineHeight:1 }}>×</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Home Page ────────────────────────────────────────────────────────────
+    function HomePage({ siteData, saveSiteData, canEdit }) {
+      const [editing, setEditing] = useState(false);
+      const [draft,   setDraft]   = useState(siteData.about || "");
+      const save = () => { saveSiteData({ ...siteData, about: draft }); setEditing(false); };
+
+      return (
+        <div style={{ padding:"52px 28px", maxWidth:760, margin:"0 auto" }}>
+          <div style={{ textAlign:"center", marginBottom:44 }}>
+            <div style={{ fontSize:56, marginBottom:18 }}>🪷</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:40, color:"#2C1810", marginBottom:10 }}>Golden Lotus</div>
+            <div style={{ fontSize:14, color:"#8B7355", letterSpacing:"3px", textTransform:"uppercase" }}>Dance Group</div>
+          </div>
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:32 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"1px", textTransform:"uppercase" }}>About Us</div>
+              {canEdit && !editing && <button onClick={() => { setDraft(siteData.about||""); setEditing(true); }} style={BTN_GHOST}>Edit</button>}
+            </div>
+            {editing ? (
+              <>
+                <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                  style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"'DM Sans',sans-serif", resize:"vertical", minHeight:220, background:"#FDFAF6", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.8 }} />
+                <div style={{ display:"flex", gap:8, marginTop:12, justifyContent:"flex-end" }}>
+                  <button onClick={() => setEditing(false)} style={BTN_GHOST}>Cancel</button>
+                  <button onClick={save} style={BTN}>Save</button>
+                </div>
+              </>
+            ) : (
+              siteData.about
+                ? <p style={{ fontSize:15, lineHeight:1.9, color:"#3A2A1A", whiteSpace:"pre-wrap" }}>{siteData.about}</p>
+                : <p style={{ fontSize:14, color:"#C4A882", fontStyle:"italic" }}>{canEdit ? "No content yet — click Edit to add your group's story." : "Coming soon."}</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Photos Page ──────────────────────────────────────────────────────────
+    function PhotosPage({ canEdit }) {
+      return (
+        <div style={{ padding:"52px 28px", maxWidth:900, margin:"0 auto", textAlign:"center" }}>
+          <div style={{ fontSize:52, marginBottom:16 }}>📸</div>
+          <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:32, color:"#2C1810", marginBottom:10 }}>Photo Album</div>
+          <div style={{ fontSize:14, color:"#8B7355", marginBottom:32 }}>Performance photos and memories will appear here.</div>
+          <div style={{ background:"#FFF", border:"1.5px dashed #D4B896", borderRadius:16, padding:"48px 32px", color:"#C4A882" }}>
+            <div style={{ fontSize:13 }}>{canEdit ? "Admin: photo upload coming soon — let us know when you'd like to build this out." : "Check back soon for photos!"}</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Contact Page ─────────────────────────────────────────────────────────
+    function ContactPage({ siteData, saveSiteData, canEdit }) {
+      const [editing, setEditing] = useState(false);
+      const [draft,   setDraft]   = useState(siteData.contact || "");
+      const save = () => { saveSiteData({ ...siteData, contact: draft }); setEditing(false); };
+
+      return (
+        <div style={{ padding:"52px 28px", maxWidth:660, margin:"0 auto" }}>
+          <div style={{ textAlign:"center", marginBottom:36 }}>
+            <div style={{ fontSize:44, marginBottom:14 }}>✉️</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:32, color:"#2C1810" }}>Contact Us</div>
+          </div>
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:32 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"1px", textTransform:"uppercase" }}>Contact Information</div>
+              {canEdit && !editing && <button onClick={() => { setDraft(siteData.contact||""); setEditing(true); }} style={BTN_GHOST}>Edit</button>}
+            </div>
+            {editing ? (
+              <>
+                <textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Email, phone, social media, rehearsal location…"
+                  style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"'DM Sans',sans-serif", resize:"vertical", minHeight:180, background:"#FDFAF6", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.8 }} />
+                <div style={{ display:"flex", gap:8, marginTop:12, justifyContent:"flex-end" }}>
+                  <button onClick={() => setEditing(false)} style={BTN_GHOST}>Cancel</button>
+                  <button onClick={save} style={BTN}>Save</button>
+                </div>
+              </>
+            ) : (
+              siteData.contact
+                ? <p style={{ fontSize:15, lineHeight:1.9, color:"#3A2A1A", whiteSpace:"pre-wrap" }}>{siteData.contact}</p>
+                : <p style={{ fontSize:14, color:"#C4A882", fontStyle:"italic" }}>{canEdit ? "No content yet — click Edit to add contact info." : "Coming soon."}</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Resources Dashboard ──────────────────────────────────────────────────
+    function ResourcesDashboard({ songs, saveSongs, onSelect, canEdit }) {
+      const [search,   setSearch]   = useState("");
+      const [showAdd,  setShowAdd]  = useState(false);
+      const [newTitle, setNewTitle] = useState("");
+
+      const filtered = songs.filter(s => s.title.toLowerCase().includes(search.toLowerCase()));
+
+      const addSong = () => {
+        if (!newTitle.trim()) return;
+        saveSongs([...songs, { id:Date.now().toString(), title:newTitle.trim(), eventTags:[], performed:"Not yet", about:"", videos:[], lyrics:{vi:"",en:""} }]);
+        setNewTitle(""); setShowAdd(false);
+      };
+
+      const deleteSong = (id) => {
+        if (!window.confirm("Delete this song and all its data?")) return;
+        saveSongs(songs.filter(s => s.id !== id));
+      };
+
+      return (
+        <div style={{ padding:"28px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24 }}>
+            <div>
+              <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:26, color:"#2C1810" }}>Resources</div>
+              <div style={{ fontSize:13, color:"#8B7355", marginTop:3 }}>{songs.length} song{songs.length!==1?"s":""}</div>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search songs…"
+                style={{ border:"0.5px solid #D4B896", borderRadius:8, padding:"7px 14px", fontSize:13, outline:"none", background:"#FFF", width:190 }} />
+              {canEdit && <button onClick={() => setShowAdd(true)} style={{ ...BTN, whiteSpace:"nowrap" }}>+ Add song</button>}
+            </div>
+          </div>
+
+          {filtered.length === 0 && !search && (
+            <div style={{ textAlign:"center", padding:"70px 0", color:"#B89A6A" }}>
+              <div style={{ fontSize:52, marginBottom:14 }}>🪷</div>
+              <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:22, marginBottom:10, color:"#5A3E28" }}>No songs yet</div>
+              {canEdit && (
+                <>
+                  <div style={{ fontSize:14, marginBottom:22 }}>Add your first song to get started</div>
+                  <button onClick={() => setShowAdd(true)} style={BTN}>+ Add song</button>
+                </>
+              )}
+            </div>
+          )}
+
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:14 }}>
+            {filtered.map(song => (
+              <SongCard key={song.id} song={song} onClick={() => onSelect(song.id)} onDelete={canEdit ? () => deleteSong(song.id) : null} />
+            ))}
+            {canEdit && songs.length > 0 && (
+              <div onClick={() => setShowAdd(true)} style={{ border:"1.5px dashed #D4B896", borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:6, minHeight:170, cursor:"pointer", color:"#B89A6A", fontSize:13 }}>
+                <div style={{ fontSize:28 }}>+</div>
+                <div>Add song</div>
+              </div>
+            )}
+          </div>
+
+          {showAdd && (
+            <Modal title="New song" onClose={() => setShowAdd(false)}>
+              <input autoFocus value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key==="Enter" && addSong()} placeholder="Song title…" style={INPUT_STYLE} />
+              <div style={{ display:"flex", gap:8, marginTop:16, justifyContent:"flex-end" }}>
+                <button onClick={() => setShowAdd(false)} style={BTN_GHOST}>Cancel</button>
+                <button onClick={addSong} style={BTN}>Create</button>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    // ── Song Card ────────────────────────────────────────────────────────────
+    function SongCard({ song, onClick, onDelete }) {
+      const perfKey = song.performed.startsWith("Performed") ? "Performed" : song.performed;
+      const perfC   = PERFORMED_COLORS[perfKey] || PERFORMED_COLORS["Not yet"];
+      return (
+        <div onClick={onClick}
+          style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:14, padding:"16px 16px 14px", cursor:"pointer", position:"relative", transition:"box-shadow 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 24px rgba(44,24,16,0.12)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+        >
+          {onDelete && (
+            <button onClick={e => { e.stopPropagation(); onDelete(); }} title="Delete song"
+              style={{ position:"absolute", top:10, right:10, background:"none", border:"none", cursor:"pointer", color:"#C4A882", fontSize:18, lineHeight:1, padding:2, borderRadius:4, zIndex:1 }}>×</button>
+          )}
+          <div style={{ width:"100%", height:66, background:"linear-gradient(135deg,#F9F0E4 0%,#F0E0C8 100%)", borderRadius:8, marginBottom:12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30 }}>🪷</div>
+          <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:14, color:"#2C1810", lineHeight:1.4, marginBottom:10, paddingRight:16 }}>{song.title}</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:10 }}>
+            {song.eventTags.map(t => {
+              const c = TAG_COLORS[t] || TAG_COLORS.Other;
+              return <span key={t} style={{ fontSize:11, background:c.bg, color:c.color, padding:"2px 8px", borderRadius:20, fontWeight:500 }}>{t}</span>;
+            })}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ fontSize:11, background:perfC.bg, color:perfC.color, padding:"2px 8px", borderRadius:20, fontWeight:500 }}>{song.performed}</span>
+            <span style={{ fontSize:11, color:"#B89A6A" }}>{song.videos.length} video{song.videos.length!==1?"s":""}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Song Detail ──────────────────────────────────────────────────────────
+    function SongDetail({ songId, songs, saveSongs, onBack, canEdit }) {
+      const [activeTab,      setActiveTab]      = useState("videos");
+      const [activeVideoIdx, setActiveVideoIdx] = useState(0);
+
+      const song = songs.find(s => s.id === songId);
+      if (!song) return null;
+
+      const updateSong = (patch) => saveSongs(songs.map(s => s.id === songId ? { ...s, ...patch } : s));
+      const video = song.videos[activeVideoIdx] || null;
+
+      return (
+        <div>
+          <div style={{ background:"#2C1810", padding:"14px 28px" }}>
+            <button onClick={onBack} style={{ background:"none", border:"none", color:"rgba(232,201,138,0.6)", cursor:"pointer", fontSize:13, padding:0, fontFamily:"'DM Sans',sans-serif", marginBottom:8 }}>← Back to Resources</button>
+            <div style={{ display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap" }}>
+              <div style={{ fontFamily:"'DM Serif Display',serif", color:"#E8C98A", fontSize:22 }}>{song.title}</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {song.eventTags.map(t => <span key={t} style={{ fontSize:11, background:"rgba(255,255,255,0.12)", color:"rgba(232,201,138,0.85)", padding:"2px 8px", borderRadius:20 }}>{t}</span>)}
+              </div>
+            </div>
+            <div style={{ display:"flex", marginTop:14 }}>
+              {["videos","lyrics","about"].map(t => (
+                <button key={t} onClick={() => setActiveTab(t)} style={{ background:"none", border:"none", borderBottom: activeTab===t ? "2px solid #E8C98A" : "2px solid transparent", color: activeTab===t ? "#E8C98A" : "rgba(232,201,138,0.45)", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, padding:"6px 18px 8px", cursor:"pointer", textTransform:"capitalize" }}>{t}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ padding:"20px 28px" }}>
+            {activeTab==="videos" && <VideosTab song={song} activeVideoIdx={activeVideoIdx} setActiveVideoIdx={setActiveVideoIdx} video={video} updateSong={updateSong} canEdit={canEdit} />}
+            {activeTab==="lyrics" && <LyricsTab song={song} updateSong={updateSong} canEdit={canEdit} />}
+            {activeTab==="about"  && <AboutTab  song={song} updateSong={updateSong} canEdit={canEdit} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Videos Tab ───────────────────────────────────────────────────────────
+    function VideosTab({ song, activeVideoIdx, setActiveVideoIdx, video, updateSong, canEdit }) {
+      const [showAdd,      setShowAdd]      = useState(false);
+      const [editingVideo, setEditingVideo] = useState(null);
+      const [newUrl,       setNewUrl]       = useState("");
+      const [newLabel,     setNewLabel]     = useState("");
+      const [newColor,     setNewColor]     = useState(VIDEO_COLORS[0]);
+      const [tsTime,       setTsTime]       = useState("");
+      const [tsLabel,      setTsLabel]      = useState("");
+      const iframeRef = useRef(null);
+
+      const addVideo = () => {
+        const ytId = parseYouTubeId(newUrl);
+        if (!ytId) { alert("Couldn't find a YouTube ID in that URL — please double-check."); return; }
+        const vid = { id:Date.now().toString(), url:newUrl.trim(), label:newLabel.trim()||`Video ${song.videos.length+1}`, color:newColor, timestamps:[], notes:"" };
+        const updated = [...song.videos, vid];
+        updateSong({ videos:updated });
+        setActiveVideoIdx(updated.length - 1);
+        setNewUrl(""); setNewLabel(""); setNewColor(VIDEO_COLORS[0]); setShowAdd(false);
+      };
+
+      const saveEdit = () => {
+        const ytId = parseYouTubeId(editingVideo.url);
+        if (!ytId) { alert("Couldn't find a YouTube ID in that URL."); return; }
+        updateSong({ videos: song.videos.map((v,i) => i===editingVideo.idx ? { ...v, url:editingVideo.url.trim(), label:editingVideo.label.trim()||v.label, color:editingVideo.color } : v) });
+        setEditingVideo(null);
+      };
+
+      const deleteVideo = (idx) => {
+        if (!window.confirm("Delete this video?")) return;
+        const updated = song.videos.filter((_,i) => i !== idx);
+        updateSong({ videos:updated });
+        setActiveVideoIdx(Math.max(0, idx - 1));
+      };
+
+      const updateVideo = (patch) => updateSong({ videos: song.videos.map((v,i) => i===activeVideoIdx ? { ...v, ...patch } : v) });
+
+      const addTimestamp = () => {
+        const secs = parseTime(tsTime);
+        if (isNaN(secs)) { alert("Use m:ss format, e.g. 1:32"); return; }
+        if (!tsLabel.trim()) { alert("Please add a label"); return; }
+        const sorted = [...(video?.timestamps||[]), { id:Date.now().toString(), time:secs, label:tsLabel.trim() }].sort((a,b)=>a.time-b.time);
+        updateVideo({ timestamps:sorted });
+        setTsTime(""); setTsLabel("");
+      };
+
+      const removeTimestamp = (tsId) => updateVideo({ timestamps: video.timestamps.filter(t => t.id !== tsId) });
+
+      const seekTo = (seconds) => {
+        if (iframeRef.current) {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event:"command", func:"seekTo", args:[seconds,true] }), "*");
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event:"command", func:"playVideo" }), "*");
+        }
+      };
+
+      const ytId     = video ? parseYouTubeId(video.url) : null;
+      const tabColor = video?.color || VIDEO_COLORS[0];
+
+      return (
+        <div>
+          {/* Video selector tabs */}
+          <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+            {song.videos.map((v, i) => {
+              const col      = v.color || VIDEO_COLORS[0];
+              const isActive = activeVideoIdx === i;
+              return (
+                <div key={v.id} style={{ display:"flex", alignItems:"stretch" }}>
+                  <button onClick={() => setActiveVideoIdx(i)} style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", border:`1.5px solid ${isActive?col:"#D4B896"}`, borderRight:"none", borderRadius:"20px 0 0 20px", background:isActive?hex2rgba(col,0.12):"transparent", color:isActive?col:"#8B7355", fontWeight:isActive?600:400 }}>
+                    <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:col, marginRight:6, verticalAlign:"middle" }} />
+                    {v.label}
+                  </button>
+                  {canEdit && <>
+                    <button onClick={() => setEditingVideo({ idx:i, url:v.url, label:v.label, color:v.color||VIDEO_COLORS[0] })} title="Edit"
+                      style={{ fontSize:11, padding:"5px 7px", cursor:"pointer", border:`1.5px solid ${isActive?col:"#D4B896"}`, borderLeft:"0.5px solid #E8DCCC", borderRight:"none", background:isActive?hex2rgba(col,0.08):"transparent", color:isActive?col:"#B89A6A" }}>✏️</button>
+                    <button onClick={() => deleteVideo(i)} title="Delete"
+                      style={{ fontSize:11, padding:"5px 7px", cursor:"pointer", border:`1.5px solid ${isActive?col:"#D4B896"}`, borderLeft:"0.5px solid #E8DCCC", borderRadius:"0 20px 20px 0", background:isActive?hex2rgba(col,0.08):"transparent", color:"#CC6644" }}>🗑</button>
+                  </>}
+                </div>
+              );
+            })}
+            {canEdit && <button onClick={() => setShowAdd(true)} style={{ fontSize:12, padding:"5px 14px", borderRadius:20, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", border:"1px dashed #D4B896", background:"transparent", color:"#B89A6A" }}>+ Add video</button>}
+          </div>
+
+          {song.videos.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"70px 0", color:"#B89A6A" }}>
+              <div style={{ fontSize:38, marginBottom:14 }}>🎬</div>
+              <div style={{ fontSize:14, marginBottom:18 }}>No videos yet{canEdit ? " — paste a YouTube URL to add one" : ""}</div>
+              {canEdit && <button onClick={() => setShowAdd(true)} style={BTN}>+ Add video</button>}
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:16, alignItems:"start" }}>
+              {/* Player + notes */}
+              <div>
+                {ytId ? (
+                  <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:12, overflow:"hidden", background:"#111", marginBottom:14, boxShadow:`0 0 0 2px ${tabColor}` }}>
+                    <iframe
+                      key={`${video.id}-${ytId}`}
+                      ref={iframeRef}
+                      src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&rel=0`}
+                      style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <div style={{ background:"#2a1a12", borderRadius:12, aspectRatio:"16/9", display:"flex", alignItems:"center", justifyContent:"center", color:"#CC6644", marginBottom:14, fontSize:13 }}>
+                    ⚠️ Could not load video — check the URL
+                  </div>
+                )}
+                <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, padding:16 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:10 }}>Notes — {video?.label}</div>
+                  <textarea value={video?.notes||""} onChange={e => canEdit && updateVideo({ notes:e.target.value })} readOnly={!canEdit}
+                    placeholder={canEdit ? "Add notes about this video…" : "No notes."}
+                    style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"'DM Sans',sans-serif", resize:"vertical", minHeight:110, background:canEdit?"#FDFAF6":"#F8F4EE", boxSizing:"border-box", color:"#2C1810", outline:"none" }} />
+                </div>
+              </div>
+
+              {/* Timestamps panel */}
+              <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, overflow:"hidden" }}>
+                <div style={{ padding:"12px 16px", borderBottom:"0.5px solid #EEE5D8", background:hex2rgba(tabColor,0.08) }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:tabColor, letterSpacing:"0.8px", textTransform:"uppercase" }}>Timestamps</div>
+                </div>
+                {(video?.timestamps||[]).length===0 && <div style={{ padding:16, fontSize:12, color:"#B89A6A", textAlign:"center" }}>No timestamps yet</div>}
+                {(video?.timestamps||[]).map(ts => (
+                  <div key={ts.id} onClick={() => seekTo(ts.time)}
+                    style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderBottom:"0.5px solid #F5EDE0", cursor:"pointer" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#FBF6EF"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ fontSize:11, fontWeight:600, background:hex2rgba(tabColor,0.12), color:tabColor, padding:"2px 8px", borderRadius:20, minWidth:40, textAlign:"center", fontFamily:"monospace" }}>{formatTime(ts.time)}</span>
+                    <span style={{ flex:1, fontSize:12, color:"#5A3E28" }}>{ts.label}</span>
+                    {canEdit && <button onClick={e => { e.stopPropagation(); removeTimestamp(ts.id); }} style={{ background:"none", border:"none", cursor:"pointer", color:"#C4A882", fontSize:15, padding:0, lineHeight:1 }}>×</button>}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div style={{ padding:"10px 14px", borderTop:"0.5px solid #EEE5D8", background:"#FBF8F4" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.7px" }}>Add timestamp</div>
+                    <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                      <input value={tsTime} onChange={e => setTsTime(e.target.value)} onKeyDown={e => e.key==="Enter" && addTimestamp()} placeholder="1:32"
+                        style={{ width:54, fontSize:12, border:"0.5px solid #D4B896", borderRadius:6, padding:"5px 8px", fontFamily:"monospace", background:"#FFF", outline:"none" }} />
+                      <input value={tsLabel} onChange={e => setTsLabel(e.target.value)} onKeyDown={e => e.key==="Enter" && addTimestamp()} placeholder="Label…"
+                        style={{ flex:1, fontSize:12, border:"0.5px solid #D4B896", borderRadius:6, padding:"5px 8px", fontFamily:"'DM Sans',sans-serif", background:"#FFF", outline:"none" }} />
+                    </div>
+                    <button onClick={addTimestamp} style={{ width:"100%", background:"#2C1810", color:"#E8C98A", border:"none", borderRadius:6, padding:"6px", fontSize:12, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontWeight:500 }}>Add</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Add video modal */}
+          {showAdd && (
+            <Modal title="Add YouTube video" onClose={() => { setShowAdd(false); setNewUrl(""); setNewLabel(""); }}>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:6 }}>YouTube URL</div>
+                <input autoFocus value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" style={INPUT_STYLE} />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:6 }}>Label (optional)</div>
+                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder={`Video ${song.videos.length+1}`} style={INPUT_STYLE} />
+              </div>
+              <div style={{ marginBottom:22 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:8 }}>Tab color</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {VIDEO_COLORS.map((col,i) => (
+                    <button key={col} onClick={() => setNewColor(col)} title={VIDEO_COLOR_LABELS[i]}
+                      style={{ width:28, height:28, borderRadius:"50%", background:col, border:newColor===col?"3px solid #2C1810":"2px solid transparent", cursor:"pointer", outline:"none" }} />
+                  ))}
+                </div>
+                <div style={{ fontSize:11, color:"#B89A6A", marginTop:6 }}>{VIDEO_COLOR_LABELS[VIDEO_COLORS.indexOf(newColor)]}</div>
+              </div>
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                <button onClick={() => { setShowAdd(false); setNewUrl(""); setNewLabel(""); }} style={BTN_GHOST}>Cancel</button>
+                <button onClick={addVideo} style={BTN}>Add</button>
+              </div>
+            </Modal>
+          )}
+
+          {/* Edit video modal */}
+          {editingVideo && (
+            <Modal title="Edit video" onClose={() => setEditingVideo(null)}>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:6 }}>YouTube URL</div>
+                <input autoFocus value={editingVideo.url} onChange={e => setEditingVideo({ ...editingVideo, url:e.target.value })} style={INPUT_STYLE} />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:6 }}>Label</div>
+                <input value={editingVideo.label} onChange={e => setEditingVideo({ ...editingVideo, label:e.target.value })} style={INPUT_STYLE} />
+              </div>
+              <div style={{ marginBottom:22 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#8B7355", marginBottom:8 }}>Tab color</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {VIDEO_COLORS.map((col,i) => (
+                    <button key={col} onClick={() => setEditingVideo({ ...editingVideo, color:col })} title={VIDEO_COLOR_LABELS[i]}
+                      style={{ width:28, height:28, borderRadius:"50%", background:col, border:editingVideo.color===col?"3px solid #2C1810":"2px solid transparent", cursor:"pointer", outline:"none" }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                <button onClick={() => setEditingVideo(null)} style={BTN_GHOST}>Cancel</button>
+                <button onClick={saveEdit} style={BTN}>Save</button>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    // ── Lyrics Tab ───────────────────────────────────────────────────────────
+    function LyricsTab({ song, updateSong, canEdit }) {
+      const viRef   = useRef(null);
+      const enRef   = useRef(null);
+      const syncing = useRef(false);
+
+      const syncScroll = (src, tgt) => {
+        if (syncing.current) return;
+        syncing.current = true;
+        const pct = src.scrollTop / (src.scrollHeight - src.clientHeight || 1);
+        tgt.scrollTop = pct * (tgt.scrollHeight - tgt.clientHeight);
+        requestAnimationFrame(() => { syncing.current = false; });
+      };
+
+      useEffect(() => {
+        const vi = viRef.current, en = enRef.current;
+        if (!vi || !en) return;
+        const onVi = () => syncScroll(vi, en);
+        const onEn = () => syncScroll(en, vi);
+        vi.addEventListener("scroll", onVi);
+        en.addEventListener("scroll", onEn);
+        return () => { vi.removeEventListener("scroll", onVi); en.removeEventListener("scroll", onEn); };
+      }, []);
+
+      return (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, height:"calc(100vh - 230px)", minHeight:400 }}>
+          {[["vi","Vietnamese Lyrics",viRef],["en","English Translation",enRef]].map(([key,label,ref]) => (
+            <div key={key} style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, overflow:"hidden", display:"flex", flexDirection:"column" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"0.5px solid #EEE5D8", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                <span style={{ fontSize:11, background:key==="vi"?"#FFE8E0":"#E8F0FF", color:key==="vi"?"#8B3A1A":"#1A3A8B", padding:"2px 8px", borderRadius:20, fontWeight:600 }}>{key==="vi"?"VI":"EN"}</span>
+                <span style={{ fontSize:13, fontWeight:500, color:"#5A3E28" }}>{label}</span>
+              </div>
+              <textarea
+                ref={ref}
+                value={song.lyrics[key]||""}
+                readOnly={!canEdit}
+                onChange={e => canEdit && updateSong({ lyrics:{ ...song.lyrics, [key]:e.target.value } })}
+                placeholder={canEdit ? `Enter ${label.toLowerCase()}…` : "No lyrics yet."}
+                style={{ flex:1, width:"100%", border:"none", padding:"14px 16px", fontSize:14, fontFamily:key==="vi"?"'DM Serif Display',serif":"'DM Sans',sans-serif", resize:"none", background:canEdit?"transparent":"#FAFAF7", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.9, overflowY:"auto" }}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ── About Tab ────────────────────────────────────────────────────────────
+    function AboutTab({ song, updateSong, canEdit }) {
+      const perfKey = song.performed.startsWith("Performed") ? "Performed" : song.performed;
+      const year    = song.performed.startsWith("Performed ") ? song.performed.replace("Performed ","") : "";
+
+      const toggleTag = (tag) => {
+        if (!canEdit) return;
+        const tags = song.eventTags.includes(tag) ? song.eventTags.filter(t=>t!==tag) : [...song.eventTags, tag];
+        updateSong({ eventTags:tags });
+      };
+
+      return (
+        <div style={{ maxWidth:700 }}>
+          {/* Event tags */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, padding:22, marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:14 }}>Event Type</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {EVENT_TYPES.map(tag => {
+                const active = song.eventTags.includes(tag);
+                const c      = TAG_COLORS[tag] || TAG_COLORS.Other;
+                return <button key={tag} onClick={() => toggleTag(tag)} style={{ fontSize:13, padding:"6px 14px", borderRadius:20, cursor:canEdit?"pointer":"default", fontFamily:"'DM Sans',sans-serif", fontWeight:500, border:active?`1.5px solid ${c.color}`:"0.5px solid #D4B896", background:active?c.bg:"transparent", color:active?c.color:"#8B7355" }}>{tag}</button>;
+              })}
+            </div>
+          </div>
+
+          {/* Performed status */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, padding:22, marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:14 }}>Performed Status</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              {PERFORMED_OPTS.map(opt => {
+                const active = perfKey === opt;
+                const c      = PERFORMED_COLORS[opt];
+                return <button key={opt} onClick={() => { if (!canEdit) return; updateSong({ performed: opt==="Performed" ? (year?`Performed ${year}`:"Performed") : opt }); }} style={{ fontSize:13, padding:"6px 14px", borderRadius:20, cursor:canEdit?"pointer":"default", fontFamily:"'DM Sans',sans-serif", fontWeight:500, border:active?`1.5px solid ${c.color}`:"0.5px solid #D4B896", background:active?c.bg:"transparent", color:active?c.color:"#8B7355" }}>{opt}</button>;
+              })}
+              {perfKey==="Performed" && canEdit && (
+                <input value={year} onChange={e => updateSong({ performed: e.target.value ? `Performed ${e.target.value}` : "Performed" })} placeholder="Year (e.g. 2024)"
+                  style={{ border:"0.5px solid #D4B896", borderRadius:8, padding:"6px 12px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", width:145, background:"#FDFAF6" }} />
+              )}
+              {perfKey==="Performed" && !canEdit && year && <span style={{ fontSize:13, color:"#8B7355" }}>{year}</span>}
+            </div>
+          </div>
+
+          {/* About text */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:12, padding:22 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"#8B7355", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:14 }}>About This Song</div>
+            <textarea value={song.about||""} readOnly={!canEdit} onChange={e => canEdit && updateSong({ about:e.target.value })}
+              placeholder={canEdit ? "Background, history, choreographer, costume details…" : "No description yet."}
+              style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"'DM Sans',sans-serif", resize:"vertical", minHeight:190, background:canEdit?"#FDFAF6":"#F8F4EE", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.75 }} />
+          </div>
+        </div>
+      );
+    }
+
+    // ── Mount ────────────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
