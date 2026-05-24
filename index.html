@@ -1,9 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Character encoding so text displays correctly -->
   <meta charset="UTF-8" />
+
+  <!-- Makes the site responsive on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Golden Lotus Dance Group</title>
+
+  <!-- Browser tab title -->
+  <title>Golden Lotus</title>
+
+  <!-- SEO/Search Engine Description -->
   <meta name="description" content="Golden Lotus Dance Group — member resources and information." />
 
   <!-- Fonts -->
@@ -15,22 +22,34 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
+    /* Reset default browser spacing */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    /* Make full page height available */
     html, body { height: 100%; }
+    
+    /* Main body styling */
     body {
       font-family: 'DM Sans', sans-serif;
       background: #FDFAF6;
       color: #2C1810;
       -webkit-font-smoothing: antialiased;
     }
+
+    /* React app container */
     #root { min-height: 100vh; }
+
+    /* Use same font for form controls */
     textarea, input, button { font-family: inherit; }
+    
+    /* Custom Scrollbar Styling */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #B89A6A; }
   </style>
 </head>
+  
 <body>
   <div id="root"></div>
 
@@ -38,11 +57,15 @@
     const { useState, useEffect, useRef, useCallback } = React;
 
     // ── Constants ────────────────────────────────────────────────────────────
+    
+    // Keys used in localStorage
     const STORAGE_KEY  = "gl_songs_v3";
     const SITE_KEY     = "gl_site_v1";
+    // Passwordds for login system
     const ADMIN_PASS   = "goldenlotus_admin";
     const VIEWER_PASS  = "goldenlotus_dancer";
 
+    // Editable Tags
     const EVENT_TYPES        = ["Tet","Ullambana","Vesak","Mid-Autumn","General","Other"];
     const PERFORMED_OPTS     = ["Not yet","In Progress","Performed"];
     const VIDEO_COLORS       = ["#8B4513","#0A5A8B","#2E7D32","#5A2D8B","#7A5C00","#C0392B","#1A5A4A","#7A3B69","#555555"];
