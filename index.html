@@ -72,15 +72,21 @@
   // ── Constants ───────────────────────────────────────────────────────────────
   const ADMIN_PASS   = "goldenlotus_admin";
   const VIEWER_PASS  = "goldenlotus_dancer";
+  const LOGO_URL     = "https://i.imgur.com/Mc5zYUz.png";
+  const BANNER_URL   = "https://media.discordapp.net/attachments/1342296013188239464/1508938426186203186/A4abec226c0ed4a94a3e0ab6f88c2e36cR.png?ex=6a175beb&is=6a160a6b&hm=6a918778e9af79bb48f9aca0ce776675a1379268c971b22cc9e15db59a0f1a04&=&format=webp&quality=lossless&width=880&height=491";
+  const JOIN_FORM    = "https://forms.gle/dTEHaehrnTzvavtUA";
+  // Paste your Imgur photo URL here once you have it:
+  const DIRECTOR_PHOTO = "";
 
   const EVENT_TYPES        = ["Tet","Ullambana","Vesak","Mid-Autumn","General","Other"];
   const PERFORMED_OPTS     = ["Not yet","In Progress","Performed"];
   const VIDEO_COLORS       = ["#8B4513","#0A5A8B","#2E7D32","#5A2D8B","#7A5C00","#C0392B","#1A5A4A","#7A3B69","#555555"];
   const VIDEO_COLOR_LABELS = ["Terracotta","Ocean","Forest","Plum","Gold","Crimson","Teal","Mauve","Slate"];
-  const CAL_EVENT_TYPES    = ["Practice","Performance","Other"];
+  const CAL_EVENT_TYPES    = ["Practice","Performance","Meeting","Other"];
   const CAL_COLORS = {
     Practice:    { bg:"#E0F4FF", color:"#0A5A8B" },
-    Performance: { bg:"#E8F5E9", color:"#2E7D32" },
+    Performance: { bg:"#FFF0E0", color:"#8B4513" },
+    Meeting:     { bg:"#E8F5E9", color:"#2E7D32" },
     Other:       { bg:"#F5F5F5", color:"#555"    },
   };
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -190,7 +196,7 @@
       await db.write("calendar", updated);
     }, []);
 
-    if (loading) return <Splash logoUrl="" />;
+    if (loading) return <Splash />;
 
     const isAdmin  = role === "admin";
     const canEdit  = isAdmin;
@@ -200,7 +206,7 @@
     if (page === "resources" && !loggedIn) {
       return (
         <div style={{ minHeight:"100vh", background:"#FDFAF6" }}>
-          <NavBar page={page} loggedIn={false} isAdmin={false} navigate={navigate} onLogout={()=>{}} logoUrl={siteData.logoUrl} />
+          <NavBar page={page} loggedIn={false} isAdmin={false} navigate={navigate} onLogout={()=>{}} />
           <LoginPage onLogin={r => setRole(r)} />
         </div>
       );
@@ -208,7 +214,7 @@
 
     return (
       <div style={{ minHeight:"100vh", background:"#FDFAF6" }}>
-        <NavBar page={page} loggedIn={loggedIn} isAdmin={isAdmin} navigate={navigate} onLogout={()=>{ setRole(null); navigate("home"); }} logoUrl={siteData.logoUrl} />
+        <NavBar page={page} loggedIn={loggedIn} isAdmin={isAdmin} navigate={navigate} onLogout={()=>{ setRole(null); navigate("home"); }} />
         {page==="home"     && <HomePage     siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} />}
         {page==="photos"   && <PhotosPage   siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} />}
         {page==="calendar" && <CalendarPage calEvents={calEvents} saveCalEvents={saveCalEvents} canEdit={canEdit} />}
@@ -223,14 +229,12 @@
   }
 
   // ── NavBar ───────────────────────────────────────────────────────────────────
-  function NavBar({ page, loggedIn, isAdmin, navigate, onLogout, logoUrl }) {
+  function NavBar({ page, loggedIn, isAdmin, navigate, onLogout }) {
     return (
       <nav style={{ background:"#2C1810", padding:"0 24px", display:"flex", alignItems:"stretch", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 2px 12px rgba(0,0,0,0.3)", minHeight:56 }}>
-        <button onClick={()=>navigate("home")} style={{ background:"none", border:"none", cursor:"pointer", padding:"10px 0", display:"flex", alignItems:"center", gap:10 }}>
-          {logoUrl
-            ? <img src={logoUrl} alt="logo" style={{ height:34, width:34, objectFit:"contain", borderRadius:4 }} onError={e=>e.target.style.display="none"} />
-            : <span style={{ fontSize:26 }}>🪷</span>}
-          <span style={{ fontFamily:F, color:"#E8C98A", fontSize:18, fontWeight:700 }}>Golden Lotus</span>
+        <button onClick={()=>navigate("home")} style={{ background:"none", border:"none", cursor:"pointer", padding:"8px 0", display:"flex", alignItems:"center", gap:10 }}>
+          <img src={LOGO_URL} alt="Golden Lotus" style={{ height:38, width:38, objectFit:"contain" }} />
+          <span style={{ fontFamily:F, color:"#E8C98A", fontSize:18, fontWeight:700, letterSpacing:"-0.2px" }}>Golden Lotus</span>
         </button>
         <div style={{ display:"flex", alignItems:"center", gap:2 }}>
           {["home","photos","calendar","contact"].map(p=>(
@@ -249,11 +253,11 @@
   }
 
   // ── Splash ───────────────────────────────────────────────────────────────────
-  function Splash({ logoUrl }) {
+  function Splash() {
     return (
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#FDFAF6" }}>
         <div style={{ textAlign:"center", color:"#8B6A3E" }}>
-          {logoUrl ? <img src={logoUrl} alt="" style={{ height:64, marginBottom:12, objectFit:"contain" }} /> : <div style={{ fontSize:52, marginBottom:12 }}>🪷</div>}
+          <img src={LOGO_URL} alt="" style={{ height:64, marginBottom:12, objectFit:"contain" }} />
           <div style={{ fontFamily:F, fontSize:24, fontWeight:700 }}>Golden Lotus</div>
           <div style={{ fontSize:13, marginTop:8, color:"#B89A6A" }}>Connecting to database…</div>
         </div>
@@ -300,50 +304,89 @@
 
   // ── Home Page ────────────────────────────────────────────────────────────────
   function HomePage({ siteData, saveSiteData, canEdit }) {
-    const [editing,setEditing]=useState(false); const [draft,setDraft]=useState(siteData.about||"");
-    const [editLogo,setEditLogo]=useState(false); const [logoDraft,setLogoDraft]=useState(siteData.logoUrl||"");
-    const saveBio=()=>{saveSiteData({...siteData,about:draft});setEditing(false);};
-    const saveLogo=()=>{saveSiteData({...siteData,logoUrl:logoDraft.trim()});setEditLogo(false);};
+    const MISSION = `At Golden Lotus, our mission is to preserve and share Vietnamese culture and Buddhist values through dance, artistic expression, and community service. Rooted in compassion, mindfulness, gratitude, and unity, we strive to create performances that honor our cultural heritage while fostering connection across generations. Through the arts, we hope to inspire pride in Vietnamese traditions, strengthen community bonds, and cultivate a spirit of kindness, respect, and service within both the Vietnamese Buddhist community and the broader public.`;
+
+    const BIO = [
+      "Founded in 2023, Golden Lotus was created by Kim Luong with the vision of preserving and sharing Vietnamese culture through artistic performance, community connection, and cultural education.",
+      "From an early age, Kim has been deeply involved in the Vietnamese Buddhist community in San Antonio. During middle school, she participated in performances at a Vietnamese Buddhist temple on the northeast side of San Antonio, where she first developed a passion for dance, storytelling, and cultural expression through the performing arts.",
+      "Over the years, she continued performing and contributing to community events through the Buddhist youth group Học Phật Khai Tâm. These experiences laid the foundation for what would later become Golden Lotus.",
+      "Today, as Director and Choreographer of Golden Lotus, Kim leads performances that blend tradition, artistry, and community spirit while creating opportunities for everyone to connect with and celebrate Vietnamese culture.",
+      "Outside of the arts, Kim earned a Bachelor of Science in Biology from The University of Texas at Austin and is currently pursuing a Master of Science in Biomedical Informatics at UTHealth Houston.",
+    ];
+
     return (
-      <div style={{ padding:"52px 28px", maxWidth:760, margin:"0 auto" }}>
-        <div style={{ textAlign:"center", marginBottom:44 }}>
-          <div style={{ position:"relative", display:"inline-block", marginBottom:16 }}>
-            {siteData.logoUrl ? <img src={siteData.logoUrl} alt="Golden Lotus" style={{ height:100, maxWidth:300, objectFit:"contain" }} onError={e=>e.target.style.opacity="0.3"} /> : <div style={{ fontSize:72 }}>🪷</div>}
-            {canEdit&&<button onClick={()=>{setLogoDraft(siteData.logoUrl||"");setEditLogo(true);}} title="Change logo" style={{ position:"absolute", bottom:-8, right:-8, background:"#2C1810", border:"2px solid #FFF", borderRadius:"50%", width:28, height:28, cursor:"pointer", fontSize:13, color:"#E8C98A", display:"flex", alignItems:"center", justifyContent:"center" }}>✏️</button>}
+      <div style={{ fontFamily:F }}>
+        {/* ── Hero Banner ── */}
+        <div style={{ position:"relative", width:"100%", maxHeight:520, overflow:"hidden", background:"#1a0f08" }}>
+          <img
+            src={BANNER_URL}
+            alt="Golden Lotus Dance Group"
+            style={{ width:"100%", maxHeight:520, objectFit:"cover", objectPosition:"center", display:"block", opacity:0.88 }}
+            onError={e=>{ e.target.style.display="none"; }}
+          />
+          {/* Gradient overlay for readability */}
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(20,8,2,0.18) 0%, rgba(20,8,2,0.55) 100%)" }} />
+          {/* Join Us CTA */}
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end", padding:"0 24px 44px", textAlign:"center" }}>
+            <a
+              href={JOIN_FORM}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display:"inline-block", background:"#E8C98A", color:"#2C1810", fontFamily:F, fontWeight:700, fontSize:15, padding:"13px 40px", borderRadius:30, textDecoration:"none", letterSpacing:"0.5px", boxShadow:"0 4px 20px rgba(0,0,0,0.35)", transition:"transform 0.15s" }}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}
+            >
+              Join Us
+            </a>
           </div>
-          <div style={{ fontFamily:F, fontSize:38, fontWeight:700, color:"#2C1810", marginBottom:6 }}>Golden Lotus</div>
-          <div style={{ fontSize:14, color:"#8B7355", letterSpacing:"2px", textTransform:"uppercase" }}>Dance Group</div>
         </div>
-        <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:32 }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
-            <SectionLabel>About Us</SectionLabel>
-            {canEdit&&!editing&&<button onClick={()=>{setDraft(siteData.about||"");setEditing(true);}} style={BTN_GHOST}>Edit</button>}
-          </div>
-          {editing ? (
-            <>
-              <textarea value={draft} onChange={e=>setDraft(e.target.value)} style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:F, resize:"vertical", minHeight:220, background:"#FDFAF6", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.8 }} />
-              <div style={{ display:"flex", gap:8, marginTop:12, justifyContent:"flex-end" }}>
-                <button onClick={()=>setEditing(false)} style={BTN_GHOST}>Cancel</button>
-                <button onClick={saveBio} style={BTN}>Save</button>
-              </div>
-            </>
-          ) : (
-            siteData.about ? <p style={{ fontSize:15, lineHeight:1.9, color:"#3A2A1A", whiteSpace:"pre-wrap", fontFamily:F }}>{siteData.about}</p>
-            : <p style={{ fontSize:14, color:"#C4A882", fontStyle:"italic" }}>{canEdit?"No content yet — click Edit to add your group's story.":"Coming soon."}</p>
-          )}
-        </div>
-        {editLogo&&(
-          <Modal title="Update Logo" onClose={()=>setEditLogo(false)}>
-            <p style={{ fontSize:13, color:"#8B7355", marginBottom:12, lineHeight:1.6 }}>Upload your logo to <strong>Imgur</strong> and paste the direct image link (ending in .png/.jpg).</p>
-            <SectionLabel>Imgur image URL</SectionLabel>
-            <input value={logoDraft} onChange={e=>setLogoDraft(e.target.value)} placeholder="https://i.imgur.com/XXXXXXX.png" style={{...INPUT_S,marginBottom:8}} />
-            {logoDraft&&<img src={logoDraft} alt="preview" style={{ marginTop:4, maxHeight:80, maxWidth:"100%", objectFit:"contain", display:"block", marginBottom:12 }} onError={e=>e.target.style.opacity="0.2"} />}
-            <div style={{ display:"flex", gap:8, marginTop:8, justifyContent:"flex-end" }}>
-              <button onClick={()=>setEditLogo(false)} style={BTN_GHOST}>Cancel</button>
-              <button onClick={saveLogo} style={BTN}>Save</button>
+
+        {/* ── Our Mission ── */}
+        <div style={{ background:"#FFF", padding:"60px 28px" }}>
+          <div style={{ maxWidth:780, margin:"0 auto", textAlign:"center" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:24 }}>
+              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+              <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>Our Mission</div>
+              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
             </div>
-          </Modal>
-        )}
+            <p style={{ fontSize:16, lineHeight:2, color:"#3A2A1A", fontFamily:F, fontStyle:"italic" }}>{MISSION}</p>
+          </div>
+        </div>
+
+        {/* ── Meet the Director ── */}
+        <div style={{ background:"#FDFAF6", padding:"60px 28px" }}>
+          <div style={{ maxWidth:900, margin:"0 auto" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:40 }}>
+              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+              <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>Meet the Director</div>
+              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+            </div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"280px 1fr", gap:44, alignItems:"start" }}>
+              {/* Photo */}
+              <div style={{ textAlign:"center" }}>
+                <div style={{ width:"100%", aspectRatio:"3/4", borderRadius:16, overflow:"hidden", background:"linear-gradient(135deg,#F9F0E4,#F0E0C8)", border:"0.5px solid #E8DCCC", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {DIRECTOR_PHOTO
+                    ? <img src={DIRECTOR_PHOTO} alt="Kim Luong" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
+                    : <div style={{ textAlign:"center", color:"#B89A6A" }}>
+                        <div style={{ fontSize:48, marginBottom:8 }}>🪷</div>
+                        <div style={{ fontSize:12, fontStyle:"italic" }}>Photo coming soon</div>
+                      </div>
+                  }
+                </div>
+                <div style={{ fontFamily:F, fontSize:18, fontWeight:700, color:"#2C1810" }}>Kim Luong</div>
+                <div style={{ fontSize:13, color:"#8B7355", marginTop:4 }}>Director &amp; Choreographer</div>
+              </div>
+
+              {/* Bio */}
+              <div style={{ paddingTop:4 }}>
+                {BIO.map((para, i) => (
+                  <p key={i} style={{ fontSize:15, lineHeight:1.95, color:"#3A2A1A", fontFamily:F, marginBottom: i < BIO.length-1 ? 18 : 0 }}>{para}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
