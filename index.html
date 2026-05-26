@@ -82,11 +82,10 @@
   const PERFORMED_OPTS     = ["Not yet","In Progress","Performed"];
   const VIDEO_COLORS       = ["#8B4513","#0A5A8B","#2E7D32","#5A2D8B","#7A5C00","#C0392B","#1A5A4A","#7A3B69","#555555"];
   const VIDEO_COLOR_LABELS = ["Terracotta","Ocean","Forest","Plum","Gold","Crimson","Teal","Mauve","Slate"];
-  const CAL_EVENT_TYPES    = ["Practice","Performance","Meeting","Other"];
+  const CAL_EVENT_TYPES    = ["Practice","Performance","Other"];
   const CAL_COLORS = {
     Practice:    { bg:"#E0F4FF", color:"#0A5A8B" },
-    Performance: { bg:"#FFF0E0", color:"#8B4513" },
-    Meeting:     { bg:"#E8F5E9", color:"#2E7D32" },
+    Performance: { bg:"#E8F5E9", color:"#2E7D32" },
     Other:       { bg:"#F5F5F5", color:"#555"    },
   };
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -215,10 +214,10 @@
     return (
       <div style={{ minHeight:"100vh", background:"#FDFAF6" }}>
         <NavBar page={page} loggedIn={loggedIn} isAdmin={isAdmin} navigate={navigate} onLogout={()=>{ setRole(null); navigate("home"); }} />
-        {page==="home"     && <HomePage     siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} />}
+        {page==="home"     && <HomePage     siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} navigate={navigate} />}
         {page==="photos"   && <PhotosPage   siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} />}
         {page==="calendar" && <CalendarPage calEvents={calEvents} saveCalEvents={saveCalEvents} canEdit={canEdit} />}
-        {page==="contact"  && <ContactPage  siteData={siteData}  saveSiteData={saveSiteData} canEdit={canEdit} />}
+        {page==="contact"  && <ContactPage />}
         {page==="resources" && loggedIn && (
           activeSong
             ? <SongDetail songId={activeSong} songs={songs} saveSongs={saveSongs} onBack={()=>setActiveSong(null)} canEdit={canEdit} />
@@ -303,38 +302,51 @@
   }
 
   // ── Home Page ────────────────────────────────────────────────────────────────
-  function HomePage({ siteData, saveSiteData, canEdit }) {
+  function HomePage({ siteData, saveSiteData, canEdit, navigate }) {
+    // ── Paste YouTube URLs here when ready ──
+    const INTRO_VIDEO_URL      = ""; // e.g. "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+    const LATEST_PERF_URL      = ""; // e.g. "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+    // ── Paste Imgur flyer URL here when ready ──
+    const UPCOMING_FLYER_URL   = ""; // e.g. "https://i.imgur.com/XXXXXXX.jpg"
+
     const MISSION = `At Golden Lotus, our mission is to preserve and share Vietnamese culture and Buddhist values through dance, artistic expression, and community service. Rooted in compassion, mindfulness, gratitude, and unity, we strive to create performances that honor our cultural heritage while fostering connection across generations. Through the arts, we hope to inspire pride in Vietnamese traditions, strengthen community bonds, and cultivate a spirit of kindness, respect, and service within both the Vietnamese Buddhist community and the broader public.`;
 
     const BIO = [
       "Founded in 2023, Golden Lotus was created by Kim Luong with the vision of preserving and sharing Vietnamese culture through artistic performance, community connection, and cultural education.",
-      "From an early age, Kim has been deeply involved in the Vietnamese Buddhist community in San Antonio. During middle school, she participated in performances at a Vietnamese Buddhist temple on the northeast side of San Antonio, where she first developed a passion for dance, storytelling, and cultural expression through the performing arts. Over the years, she continued performing and contributing to community events through the Buddhist youth group Học Phật Khai Tâm. These experiences laid the foundation for what would later become Golden Lotus.",
+      "From an early age, Kim has been deeply involved in the Vietnamese Buddhist community in San Antonio. During middle school, she participated in performances at a Vietnamese Buddhist temple on the northeast side of San Antonio, where she first developed a passion for dance, storytelling, and cultural expression through the performing arts.",
+      "Over the years, she continued performing and contributing to community events through the Buddhist youth group Học Phật Khai Tâm. These experiences laid the foundation for what would later become Golden Lotus.",
       "Today, as Director and Choreographer of Golden Lotus, Kim leads performances that blend tradition, artistry, and community spirit while creating opportunities for everyone to connect with and celebrate Vietnamese culture.",
       "Outside of the arts, Kim earned a Bachelor of Science in Biology from The University of Texas at Austin and is currently pursuing a Master of Science in Biomedical Informatics at UTHealth Houston.",
     ];
+
+    const introYtId  = INTRO_VIDEO_URL  ? parseYouTubeId(INTRO_VIDEO_URL)  : null;
+    const latestYtId = LATEST_PERF_URL  ? parseYouTubeId(LATEST_PERF_URL)  : null;
+
+    const SectionDivider = ({ label }) => (
+      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:40 }}>
+        <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+        <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>{label}</div>
+        <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+      </div>
+    );
+
+    const VideoPlaceholder = ({ label }) => (
+      <div style={{ width:"100%", aspectRatio:"16/9", background:"linear-gradient(135deg,#2C1810,#4A2C1A)", borderRadius:12, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, border:"0.5px solid #5A3E28" }}>
+        <div style={{ fontSize:36 }}>▶️</div>
+        <div style={{ fontSize:12, color:"rgba(232,201,138,0.6)", fontStyle:"italic", textAlign:"center", padding:"0 16px" }}>{label}</div>
+      </div>
+    );
 
     return (
       <div style={{ fontFamily:F }}>
         {/* ── Hero Banner ── */}
         <div style={{ position:"relative", width:"100%", maxHeight:520, overflow:"hidden", background:"#1a0f08" }}>
-          <img
-            src={BANNER_URL}
-            alt="Golden Lotus Dance Group"
-            style={{ width:"100%", maxHeight:520, objectFit:"cover", objectPosition:"center", display:"block", opacity:0.88 }}
-            onError={e=>{ e.target.style.display="none"; }}
-          />
-          {/* Gradient overlay for readability */}
+          <img src={BANNER_URL} alt="Golden Lotus Dance Group" style={{ width:"100%", maxHeight:520, objectFit:"cover", objectPosition:"center", display:"block", opacity:0.88 }} onError={e=>e.target.style.display="none"} />
           <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(20,8,2,0.18) 0%, rgba(20,8,2,0.55) 100%)" }} />
-          {/* Join Us CTA */}
-          <div style={{ position:"absolute", bottom:0, left:0, right:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end", padding:"0 24px 44px", textAlign:"center" }}>
-            <a
-              href={JOIN_FORM}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display:"inline-block", background:"#E8C98A", color:"#2C1810", fontFamily:F, fontWeight:700, fontSize:15, padding:"13px 40px", borderRadius:30, textDecoration:"none", letterSpacing:"0.5px", boxShadow:"0 4px 20px rgba(0,0,0,0.35)", transition:"transform 0.15s" }}
-              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"}
-              onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}
-            >
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"0 24px 44px" }}>
+            <a href={JOIN_FORM} target="_blank" rel="noopener noreferrer"
+              style={{ display:"inline-block", background:"#E8C98A", color:"#2C1810", fontFamily:F, fontWeight:700, fontSize:15, padding:"13px 40px", borderRadius:30, textDecoration:"none", letterSpacing:"0.5px", boxShadow:"0 4px 20px rgba(0,0,0,0.35)" }}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
               Join Us
             </a>
           </div>
@@ -342,47 +354,90 @@
 
         {/* ── Our Mission ── */}
         <div style={{ background:"#FFF", padding:"60px 28px" }}>
-          <div style={{ maxWidth:780, margin:"0 auto", textAlign:"center" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:24 }}>
-              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
-              <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>Our Mission</div>
-              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
+          <div style={{ maxWidth:960, margin:"0 auto" }}>
+            <SectionDivider label="Our Mission" />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:44, alignItems:"center" }}>
+              {/* Left: intro video */}
+              <div>
+                {introYtId ? (
+                  <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:12, overflow:"hidden" }}>
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${introYtId}?rel=0`} style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen />
+                  </div>
+                ) : (
+                  <VideoPlaceholder label="Introduction video coming soon — add the YouTube URL in the code" />
+                )}
+              </div>
+              {/* Right: mission text */}
+              <div>
+                <p style={{ fontSize:16, lineHeight:2.1, color:"#3A2A1A", fontFamily:F, fontStyle:"italic" }}>{MISSION}</p>
+              </div>
             </div>
-            <p style={{ fontSize:16, lineHeight:2, color:"#3A2A1A", fontFamily:F, fontStyle:"italic" }}>{MISSION}</p>
           </div>
         </div>
 
         {/* ── Meet the Director ── */}
         <div style={{ background:"#FDFAF6", padding:"60px 28px" }}>
-          <div style={{ maxWidth:900, margin:"0 auto" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:40 }}>
-              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
-              <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>Meet the Director</div>
-              <div style={{ height:"0.5px", flex:1, background:"#E8DCCC" }} />
-            </div>
-
+          <div style={{ maxWidth:960, margin:"0 auto" }}>
+            <SectionDivider label="Meet the Director" />
             <div style={{ display:"grid", gridTemplateColumns:"280px 1fr", gap:44, alignItems:"start" }}>
               {/* Photo */}
               <div style={{ textAlign:"center" }}>
                 <div style={{ width:"100%", aspectRatio:"3/4", borderRadius:16, overflow:"hidden", background:"linear-gradient(135deg,#F9F0E4,#F0E0C8)", border:"0.5px solid #E8DCCC", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {DIRECTOR_PHOTO
                     ? <img src={DIRECTOR_PHOTO} alt="Kim Luong" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
-                    : <div style={{ textAlign:"center", color:"#B89A6A" }}>
-                        <div style={{ fontSize:48, marginBottom:8 }}>🪷</div>
-                        <div style={{ fontSize:12, fontStyle:"italic" }}>Photo coming soon</div>
-                      </div>
+                    : <div style={{ textAlign:"center", color:"#B89A6A" }}><div style={{ fontSize:48, marginBottom:8 }}>🪷</div><div style={{ fontSize:12, fontStyle:"italic" }}>Photo coming soon</div></div>
                   }
                 </div>
                 <div style={{ fontFamily:F, fontSize:18, fontWeight:700, color:"#2C1810" }}>Kim Luong</div>
                 <div style={{ fontSize:13, color:"#8B7355", marginTop:4 }}>Director &amp; Choreographer</div>
               </div>
-
               {/* Bio */}
               <div style={{ paddingTop:4 }}>
                 {BIO.map((para, i) => (
                   <p key={i} style={{ fontSize:15, lineHeight:1.95, color:"#3A2A1A", fontFamily:F, marginBottom: i < BIO.length-1 ? 18 : 0 }}>{para}</p>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Latest Performance + Upcoming Events ── */}
+        <div style={{ background:"#FFF", padding:"60px 28px" }}>
+          <div style={{ maxWidth:960, margin:"0 auto" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:44, alignItems:"start" }}>
+
+              {/* Left: Latest Performance */}
+              <div>
+                <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", marginBottom:20 }}>Latest Performance</div>
+                {latestYtId ? (
+                  <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:12, overflow:"hidden" }}>
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${latestYtId}?rel=0`} style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen />
+                  </div>
+                ) : (
+                  <VideoPlaceholder label="Latest performance video coming soon — add the YouTube URL in the code" />
+                )}
+              </div>
+
+              {/* Right: Upcoming Events */}
+              <div>
+                <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"#8B7355", letterSpacing:"2.5px", textTransform:"uppercase", marginBottom:20 }}>Upcoming Events</div>
+                {/* Flyer */}
+                <div style={{ borderRadius:12, overflow:"hidden", border:"0.5px solid #E8DCCC", marginBottom:14, background:"#F9F4ED", minHeight:180, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {UPCOMING_FLYER_URL
+                    ? <img src={UPCOMING_FLYER_URL} alt="Upcoming event flyer" style={{ width:"100%", display:"block", objectFit:"contain" }} onError={e=>e.target.style.opacity="0.3"} />
+                    : <div style={{ textAlign:"center", color:"#B89A6A", padding:28 }}>
+                        <div style={{ fontSize:36, marginBottom:8 }}>📋</div>
+                        <div style={{ fontSize:12, fontStyle:"italic" }}>Event flyer coming soon — add the Imgur URL in the code</div>
+                      </div>
+                  }
+                </div>
+                {/* Calendar link */}
+                <button onClick={()=>navigate("calendar")}
+                  style={{ background:"none", border:"none", cursor:"pointer", fontFamily:F, fontSize:13, color:"#8B4513", textDecoration:"underline", textDecorationColor:"rgba(139,69,19,0.4)", padding:0, display:"inline-flex", alignItems:"center", gap:6 }}>
+                  📅 Updates of Practice and Performance Times on the Calendar
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -612,29 +667,104 @@
   }
 
   // ── Contact Page ──────────────────────────────────────────────────────────────
-  function ContactPage({ siteData, saveSiteData, canEdit }) {
-    const [editing,setEditing]=useState(false); const [draft,setDraft]=useState(siteData.contact||"");
-    const save=()=>{ saveSiteData({...siteData,contact:draft}); setEditing(false); };
+  function ContactPage() {
+    const SOCIALS = [
+      {
+        label: "YouTube",
+        url: "https://www.youtube.com/@goldenlotus_satx",
+        icon: (
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+        ),
+        color: "#FF0000",
+      },
+      {
+        label: "Instagram",
+        url: "https://www.instagram.com/goldenlotus.satx",
+        icon: (
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+        ),
+        color: "#E1306C",
+      },
+      {
+        label: "Facebook",
+        url: "https://www.facebook.com/goldenlotus.satx",
+        icon: (
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        ),
+        color: "#1877F2",
+      },
+    ];
+
     return (
-      <div style={{ padding:"52px 28px", maxWidth:660, margin:"0 auto" }}>
-        <div style={{ textAlign:"center", marginBottom:36 }}>
-          <div style={{ fontSize:44, marginBottom:14 }}>✉️</div>
-          <div style={{ fontFamily:F, fontSize:32, fontWeight:700, color:"#2C1810" }}>Contact Us</div>
-        </div>
-        <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:32 }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
-            <SectionLabel>Contact Information</SectionLabel>
-            {canEdit&&!editing&&<button onClick={()=>{setDraft(siteData.contact||"");setEditing(true);}} style={BTN_GHOST}>Edit</button>}
+      <div style={{ fontFamily:F, background:"#FDFAF6", minHeight:"calc(100vh - 56px)" }}>
+        <div style={{ maxWidth:780, margin:"0 auto", padding:"52px 28px" }}>
+
+          {/* Header */}
+          <div style={{ textAlign:"center", marginBottom:48 }}>
+            <div style={{ fontFamily:F, fontSize:32, fontWeight:700, color:"#2C1810", marginBottom:12 }}>Contact Us</div>
+            <p style={{ fontSize:16, lineHeight:1.85, color:"#5A3E28", maxWidth:580, margin:"0 auto" }}>
+              We'd love to connect with you. Whether you're interested in performances, collaborations, volunteering, cultural events, or joining Golden Lotus, feel free to reach out.
+            </p>
           </div>
-          {editing?(
-            <>
-              <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Email, phone, social media, rehearsal location…" style={{ width:"100%", border:"0.5px solid #E0D4C0", borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:F, resize:"vertical", minHeight:180, background:"#FDFAF6", color:"#2C1810", outline:"none", boxSizing:"border-box", lineHeight:1.8 }} />
-              <div style={{ display:"flex", gap:8, marginTop:12, justifyContent:"flex-end" }}><button onClick={()=>setEditing(false)} style={BTN_GHOST}>Cancel</button><button onClick={save} style={BTN}>Save</button></div>
-            </>
-          ):(
-            siteData.contact?<p style={{ fontSize:15, lineHeight:1.9, color:"#3A2A1A", whiteSpace:"pre-wrap", fontFamily:F }}>{siteData.contact}</p>
-            :<p style={{ fontSize:14, color:"#C4A882", fontStyle:"italic" }}>{canEdit?"No content yet — click Edit.":"Coming soon."}</p>
-          )}
+
+          {/* Email */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:"28px 32px", marginBottom:20 }}>
+            <SectionLabel>Email</SectionLabel>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ fontSize:22 }}>✉️</div>
+              <span style={{ fontSize:16, color:"#2C1810", fontWeight:500 }}>kim2002.knl@gmail.com</span>
+            </div>
+          </div>
+
+          {/* Social Media */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:"28px 32px", marginBottom:20 }}>
+            <SectionLabel>Follow Us</SectionLabel>
+            <p style={{ fontSize:14, color:"#5A3E28", marginBottom:20, lineHeight:1.7 }}>
+              Follow our journey and upcoming performances on social media.
+            </p>
+            <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+              {SOCIALS.map(s => (
+                <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 20px", borderRadius:12, border:`1.5px solid ${s.color}22`, background:`${s.color}0d`, color:s.color, textDecoration:"none", fontWeight:600, fontSize:14, transition:"transform 0.15s, box-shadow 0.15s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow=`0 4px 16px ${s.color}33`; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow=""; }}>
+                  {s.icon}
+                  <span>{s.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Location + Map */}
+          <div style={{ background:"#FFF", border:"0.5px solid #E8DCCC", borderRadius:16, padding:"28px 32px" }}>
+            <SectionLabel>Practice Location</SectionLabel>
+            <div style={{ display:"flex", gap:10, marginBottom:6, alignItems:"flex-start" }}>
+              <span style={{ fontSize:20, marginTop:1 }}>🏛️</span>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700, color:"#2C1810", marginBottom:2 }}>Phước Huệ Buddhist Temple of San Antonio</div>
+                <div style={{ fontSize:14, color:"#8B7355" }}>6292 Lockhill Rd, San Antonio, TX 78240</div>
+              </div>
+            </div>
+            <div style={{ marginTop:20, borderRadius:12, overflow:"hidden", border:"0.5px solid #E8DCCC" }}>
+              <iframe
+                title="Phước Huệ Buddhist Temple"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3468.3!2d-98.5699!3d29.5412!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x865c5f2e4d7b4c3f%3A0x4b7e1d6b2a8e3c1a!2s6292%20Lockhill%20Rd%2C%20San%20Antonio%2C%20TX%2078240!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+                width="100%"
+                height="300"
+                style={{ border:"none", display:"block" }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+
         </div>
       </div>
     );
