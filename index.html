@@ -304,7 +304,7 @@
   // ── Home Page ────────────────────────────────────────────────────────────────
   function HomePage({ siteData, saveSiteData, canEdit, navigate }) {
     // ── Paste YouTube URLs here when ready ──
-    const INTRO_VIDEO_URL      = ""; // e.g. "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+    const INTRO_VIDEO_URL      = "https://youtu.be/yN2zhs6uqUA"; // e.g. "https://www.youtube.com/watch?v=XXXXXXXXXXX"
     const LATEST_PERF_URL      = ""; // e.g. "https://www.youtube.com/watch?v=XXXXXXXXXXX"
     // ── Paste Imgur flyer URL here when ready ──
     const UPCOMING_FLYER_URL   = "https://media.discordapp.net/attachments/1342296013188239464/1508955448534106154/Ad7986bcef9724c9281dc76ac502ca9e6g.png?ex=6a176bc5&is=6a161a45&hm=3e8014ddaa253eb7e912d3ff309ae51dff74a16cf02e7fef2623888a88cac719&=&format=webp&quality=lossless&width=479&height=595"; // e.g. "https://i.imgur.com/XXXXXXX.jpg"
@@ -319,7 +319,7 @@
       "Outside of the arts, Kim earned a Bachelor of Science in Biology from The University of Texas at Austin and is currently pursuing a Master of Science in Biomedical Informatics at UTHealth Houston.",
     ];
 
-    const introYtId  = INTRO_VIDEO_URL  ? parseYouTubeId(https://youtu.be/yN2zhs6uqUA)  : null;
+    const introYtId  = INTRO_VIDEO_URL  ? parseYouTubeId(INTRO_VIDEO_URL)  : null;
     const latestYtId = LATEST_PERF_URL  ? parseYouTubeId(LATEST_PERF_URL)  : null;
 
     const SectionDivider = ({ label }) => (
