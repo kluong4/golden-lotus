@@ -488,7 +488,7 @@
                   onClick={()=>setLightbox(photo)}
                   onMouseEnter={e=>e.currentTarget.querySelector(".ov").style.opacity="1"}
                   onMouseLeave={e=>e.currentTarget.querySelector(".ov").style.opacity="0"}>
-                  <img src={photo.url} alt={photo.caption||"photo"} referrerPolicy="no-referrer" crossOrigin="anonymous" style={{ width:"100%", aspectRatio:"4/3", objectFit:"cover", display:"block" }} />
+                  <img src={photo.url} alt={photo.caption||"photo"} style={{ width:"100%", aspectRatio:"4/3", objectFit:"cover", display:"block" }} />
                   <div className="ov" style={{ position:"absolute", inset:0, background:"rgba(44,24,16,0.55)", display:"flex", alignItems:"flex-end", padding:10, opacity:0, transition:"opacity 0.15s" }}>
                     {photo.caption&&<span style={{ fontSize:12, color:"#FFF", lineHeight:1.4 }}>{photo.caption}</span>}
                   </div>
@@ -499,7 +499,7 @@
         ))}
         {lightbox&&(
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.88)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }} onClick={e=>e.target===e.currentTarget&&setLightbox(null)}>
-            <img src={lightbox.url} alt={lightbox.caption} referrerPolicy="no-referrer" crossOrigin="anonymous" style={{ maxWidth:"90vw", maxHeight:"75vh", objectFit:"contain", borderRadius:8 }} />
+            <img src={lightbox.url} alt={lightbox.caption} style={{ maxWidth:"90vw", maxHeight:"75vh", objectFit:"contain", borderRadius:8 }} />
             {lightbox.caption&&<div style={{ color:"#E8C98A", fontSize:14 }}>{lightbox.caption}</div>}
             <div style={{ display:"flex", gap:10 }}>
               <button onClick={()=>setLightbox(null)} style={{...BTN_GHOST,color:"#FFF",border:"0.5px solid rgba(255,255,255,0.3)"}}>Close</button>
