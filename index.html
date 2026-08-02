@@ -819,7 +819,7 @@
         <div style={{ padding:"12px 14px 12px" }}>
           <div style={{ fontFamily:F, fontSize:14, fontWeight:600, color:"#2C1810", lineHeight:1.4, marginBottom:8, paddingRight:8 }}>{song.title}</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
-            (song.eventTags||[]).map(t=>{ const c=TAG_COLORS[t]||TAG_COLORS.Other; return <span key={t} style={{ fontSize:10, background:c.bg, color:c.color, padding:"2px 7px", borderRadius:20, fontWeight:600 }}>{t}</span>; })}
+            {(song.eventTags||[]).map(t=>{ const c=TAG_COLORS[t]||TAG_COLORS.Other; return <span key={t} style={{ fontSize:10, background:c.bg, color:c.color, padding:"2px 7px", borderRadius:20, fontWeight:600 }}>{t}</span>; })}
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <span style={{ fontSize:10, background:perfC.bg, color:perfC.color, padding:"2px 7px", borderRadius:20, fontWeight:600 }}>{song.performed}</span>
