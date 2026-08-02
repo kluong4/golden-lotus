@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Golden Lotus</title>
   <meta name="description" content="Golden Lotus Dance Group — member resources and information." />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: wss: data: blob:;">
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -823,7 +823,7 @@
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <span style={{ fontSize:10, background:perfC.bg, color:perfC.color, padding:"2px 7px", borderRadius:20, fontWeight:600 }}>{song.performed}</span>
-            <span style={{ fontSize:11, color:"#B89A6A" }}>{song.videos.length} video{song.videos.length!==1?"s":""}</span>
+            <span style={{ fontSize:11, color:"#B89A6A" }}>{(song.videos||[]).length} video{(song.videos||[]).length!==1?"s":""}</span>
           </div>
         </div>
       </div>
@@ -975,6 +975,7 @@
   // ── About Tab ─────────────────────────────────────────────────────────────────
   function AboutTab({ song, updateSong, canEdit }) {
     const [editingCover,setEditingCover]=useState(false); const [coverDraft,setCoverDraft]=useState(song.coverUrl||"");
+    const song2 = { eventTags:[], performed:"Not yet", videos:[], lyrics:{vi:"",en:""}, coverUrl:"", about:"", ...song };
     const perfKey=(song.performed||"Not yet").startsWith("Performed")?"Performed":(song.performed||"Not yet");
     const year=song.performed.startsWith("Performed ")?song.performed.replace("Performed ",""):"";
     const saveCover=()=>{updateSong({coverUrl:coverDraft.trim()});setEditingCover(false);};
